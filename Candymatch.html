@@ -1,0 +1,249 @@
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Candy Match</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #1a1a2e;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      touch-action: manipulation;
+    }
+
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 360px;
+      padding: 10px;
+    }
+
+    .score-board {
+      font-size: 20px;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+      width: 100%;
+      aspect-ratio: 1;
+      background-color: #16213e;
+      padding: 8px;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    }
+
+    .cell {
+      background-color: #0f3460;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.2s, background-color 0.2s;
+    }
+
+    .cell.selected {
+      background-color: #e94560;
+      transform: scale(0.95);
+    }
+
+    .reset-btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      background-color: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .reset-btn:active {
+      background-color: #c73650;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <div class="score-board">Score: <span id="score">0</span></div>
+    <div class="grid" id="grid"></div>
+    <button class="reset-btn" id="resetBtn">New Game</button>
+  </div>
+
+  <script>
+    const width = 6;
+    const height = 6;
+    const candies = ["🍬", "🍫", "🍭", "🍩", "🍪"];
+    let board = [];
+    let score = 0;
+    let selectedCell = null;
+
+    const gridEl = document.getElementById("grid");
+    const scoreEl = document.getElementById("score");
+    const resetBtn = document.getElementById("resetBtn");
+
+    function createBoard() {
+      board = [];
+      gridEl.innerHTML = "";
+      for (let i = 0; i < width * height; i++) {
+        let randomCandy = candies[Math.floor(Math.random() * candies.length)];
+        board.push(randomCandy);
+      }
+      renderBoard();
+      // Clear initial matches if any
+      setTimeout(checkMatches, 100);
+    }
+
+    function renderBoard() {
+      gridEl.innerHTML = "";
+      board.forEach((candy, index) => {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.dataset.index = index;
+        cell.textContent = candy;
+        cell.addEventListener("click", handleCellClick);
+        gridEl.appendChild(cell);
+      });
+    }
+
+    function handleCellClick() {
+      const index = parseInt(this.dataset.index);
+
+      if (selectedCell === null) {
+        selectedCell = index;
+        this.classList.add("selected");
+      } else {
+        const prevCell = selectedCell;
+        document.querySelector(`[data-index='${prevCell}']`).classList.remove("selected");
+
+        if (isAdjacent(prevCell, index)) {
+          swapCandies(prevCell, index);
+          if (!checkMatches()) {
+            // Swap back if no match was made
+            swapCandies(prevCell, index);
+          }
+        }
+        selectedCell = null;
+      }
+    }
+
+    function isAdjacent(i1, i2) {
+      const row1 = Math.floor(i1 / width);
+      const col1 = i1 % width;
+      const row2 = Math.floor(i2 / width);
+      const col2 = i2 % width;
+
+      return (Math.abs(row1 - row2) + Math.abs(col1 - col2)) === 1;
+    }
+
+    function swapCandies(i1, i2) {
+      let temp = board[i1];
+      board[i1] = board[i2];
+      board[i2] = temp;
+      renderBoard();
+    }
+
+    function checkMatches() {
+      let matched = false;
+
+      // Check Row Matches
+      for (let r = 0; r < height; r++) {
+        for (let c = 0; c < width - 2; c++) {
+          let i1 = r * width + c;
+          let i2 = r * width + c + 1;
+          let i3 = r * width + c + 2;
+
+          if (board[i1] && board[i1] === board[i2] && board[i1] === board[i3]) {
+            board[i1] = board[i2] = board[i3] = null;
+            score += 30;
+            matched = true;
+          }
+        }
+      }
+
+      // Check Column Matches
+      for (let c = 0; c < width; c++) {
+        for (let r = 0; r < height - 2; r++) {
+          let i1 = r * width + c;
+          let i2 = (r + 1) * width + c;
+          let i3 = (r + 2) * width + c;
+
+          if (board[i1] && board[i1] === board[i2] && board[i1] === board[i3]) {
+            board[i1] = board[i2] = board[i3] = null;
+            score += 30;
+            matched = true;
+          }
+        }
+      }
+
+      if (matched) {
+        scoreEl.textContent = score;
+        renderBoard();
+        setTimeout(refillBoard, 300);
+      }
+
+      return matched;
+    }
+
+    function refillBoard() {
+      // Drop candies down
+      for (let c = 0; c < width; c++) {
+        for (let r = height - 1; r >= 0; r--) {
+          let idx = r * width + c;
+          if (board[idx] === null) {
+            // Look up for a candy to drop
+            let found = false;
+            for (let aboveR = r - 1; aboveR >= 0; aboveR--) {
+              let aboveIdx = aboveR * width + c;
+              if (board[aboveIdx] !== null) {
+                board[idx] = board[aboveIdx];
+                board[aboveIdx] = null;
+                found = true;
+                break;
+              }
+            }
+            // If none found above, generate new random candy at top
+            if (!found) {
+              board[idx] = candies[Math.floor(Math.random() * candies.length)];
+            }
+          }
+        }
+      }
+      renderBoard();
+      setTimeout(checkMatches, 200); // Check again for cascading matches
+    }
+
+    resetBtn.addEventListener("click", () => {
+      score = 0;
+      scoreEl.textContent = score;
+      createBoard();
+    });
+
+    // Initialize Game
+    createBoard();
+  </script>
+</body>
+</html>
